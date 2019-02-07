@@ -135,6 +135,19 @@ struct BaseParametersGrammar : boost::spirit::qi::grammar<Iterator, Signature>
                                            },
                                            qi::_1)];
 
+        acceleration_alpha_defaults_rule =
+            qi::lit("car")[qi::_val = ACCELERATION_ALPHA_CAR] |
+            qi::lit("fast_car")[qi::_val = ACCELERATION_ALPHA_FAST_CAR] |
+            qi::lit("slow_car")[qi::_val = ACCELERATION_ALPHA_SLOW_CAR] |
+            qi::lit("truck")[qi::_val = ACCELERATION_ALPHA_TRUCK] |
+            qi::lit("tractor_trailer")[qi::_val = ACCELERATION_ALPHA_TRACTOR_TRAILER];
+
+        acceleration_profile_rule =
+            qi::lit("acceleration_profile=") >
+            (qi::double_ | acceleration_alpha_defaults_rule)
+                [ph::bind(&engine::api::BaseParameters::waypoint_acceleration_factor, qi::_r1) =
+                     qi::_1];
+
         query_rule =
             ((location_rule % ';') | polyline_rule |
              polyline6_rule)[ph::bind(&engine::api::BaseParameters::coordinates, qi::_r1) = qi::_1];
@@ -166,12 +179,13 @@ struct BaseParametersGrammar : boost::spirit::qi::grammar<Iterator, Signature>
                        (qi::as_string[+qi::char_("a-zA-Z0-9")] %
                         ',')[ph::bind(&engine::api::BaseParameters::exclude, qi::_r1) = qi::_1];
 
-        base_rule = radiuses_rule(qi::_r1)         //
-                    | hints_rule(qi::_r1)          //
-                    | bearings_rule(qi::_r1)       //
-                    | generate_hints_rule(qi::_r1) //
-                    | approach_rule(qi::_r1)       //
-                    | exclude_rule(qi::_r1);
+        base_rule = radiuses_rule(qi::_r1)                         //
+                    | hints_rule(qi::_r1)                          //
+                    | bearings_rule(qi::_r1)                       //
+                    | generate_hints_rule(qi::_r1)                 //
+                    | approach_rule(qi::_r1)                       //
+                    | exclude_rule(qi::_r1)                        //
+                    | acceleration_profile_rule(qi::_r1);//
     }
 
   protected:
@@ -188,6 +202,7 @@ struct BaseParametersGrammar : boost::spirit::qi::grammar<Iterator, Signature>
     qi::rule<Iterator, Signature> generate_hints_rule;
     qi::rule<Iterator, Signature> approach_rule;
     qi::rule<Iterator, Signature> exclude_rule;
+    qi::rule<Iterator, Signature> acceleration_profile_rule;
 
     qi::rule<Iterator, osrm::engine::Bearing()> bearing_rule;
     qi::rule<Iterator, osrm::util::Coordinate()> location_rule;
@@ -197,6 +212,8 @@ struct BaseParametersGrammar : boost::spirit::qi::grammar<Iterator, Signature>
     qi::rule<Iterator, unsigned char()> base64_char;
     qi::rule<Iterator, std::string()> polyline_chars;
     qi::rule<Iterator, double()> unlimited_rule;
+
+    qi::rule<Iterator, double()> acceleration_alpha_defaults_rule;
 
     qi::symbols<char, engine::Approach> approach_type;
 };
