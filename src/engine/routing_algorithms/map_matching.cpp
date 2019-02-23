@@ -144,6 +144,11 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
 
     HMM model(candidates_list, emission_log_probabilities);
 
+    std::cout << "#candidates: " << candidates_list.size() << std::endl;
+    for(auto i = 0UL; i < candidates_list.size(); i++)
+        std::cout << candidates_list[i].size() << ", ";
+    std::cout << std::endl;
+
     std::size_t initial_timestamp = model.initialize(0);
     if (initial_timestamp == map_matching::INVALID_STATE)
     {
@@ -161,7 +166,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
     prev_unbroken_timestamps.push_back(initial_timestamp);
     for (auto t = initial_timestamp + 1; t < candidates_list.size(); ++t)
     {
-
+        std::cout << "Main loop; t=" << t << std::endl;
         const auto step_time = [&] {
             if (use_timestamps)
             {
@@ -199,6 +204,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
 
         if (!gap_in_trace)
         {
+            std::cout << "no gap in trace" << std::endl;
             BOOST_ASSERT(!prev_unbroken_timestamps.empty());
             const std::size_t prev_unbroken_timestamp = prev_unbroken_timestamps.back();
 
@@ -292,6 +298,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
 
         if (trace_split || gap_in_trace)
         {
+            std::cout << "gap or split" << std::endl;
             std::size_t split_index = t;
             if (breakage_begin != map_matching::INVALID_STATE)
             {
@@ -318,7 +325,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
             // note: the head of the loop will call ++t, hence the next
             // iteration will actually be on new_start+1
         }
-    }
+    } // main loop
 
     if (!prev_unbroken_timestamps.empty())
     {
@@ -404,6 +411,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
         auto trace_distance = 0.0;
         matching.nodes.reserve(reconstructed_indices.size());
         matching.indices.reserve(reconstructed_indices.size());
+        std::cout << "roadDistance = sum(";
         for (const auto &idx : reconstructed_indices)
         {
             const auto timestamp_index = idx.first;
@@ -418,17 +426,26 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
             BOOST_ASSERT(routes_count > 0);
             // we don't count the current route in the "alternatives_count" parameter
             matching.alternatives_count.push_back(routes_count - 1);
+            std::cout << model.path_distances[timestamp_index][location_index] << ", ";
             matching_distance += model.path_distances[timestamp_index][location_index];
         }
+        std::cout << ") = " << matching_distance << std::endl;
+        std::cout << "orthodromic = sum(";
         util::for_each_pair(
             reconstructed_indices,
             [&trace_distance, &trace_coordinates](const std::pair<std::size_t, std::size_t> &prev,
                                                   const std::pair<std::size_t, std::size_t> &curr) {
+                std::cout << util::coordinate_calculation::haversineDistance(
+                    trace_coordinates[prev.first], trace_coordinates[curr.first]) << ", ";
+
                 trace_distance += util::coordinate_calculation::haversineDistance(
                     trace_coordinates[prev.first], trace_coordinates[curr.first]);
             });
 
+        std::cout<< ") = " << trace_distance << std::endl;
+
         matching.confidence = confidence(trace_distance, matching_distance);
+        std::cout << "matching.confidence: " << matching.confidence << std::endl;
 
         sub_matchings.push_back(matching);
         sub_matching_begin = sub_matching_end;
